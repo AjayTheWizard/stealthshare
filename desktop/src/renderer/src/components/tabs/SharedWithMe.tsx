@@ -54,8 +54,12 @@ const SharedWithMe = () => {
     fetchTorrents();
   }, [])
 
-  const download = (file: TorrentDoc) => {
+  useEffect(()=>{
+    
+  }, [])
 
+  const download = (file: TorrentDoc) => {
+    window.electron.ipcRenderer.invoke("download:torrent", file);
   }
 
   if (isLoading) return;

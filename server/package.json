@@ -2,5 +2,8 @@
   "dependencies": {
     "express": "^4.21.2",
     "webtorrent": "^2.5.19"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
   }
 }

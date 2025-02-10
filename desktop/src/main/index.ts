@@ -171,6 +171,24 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle("download:torrent", async (event, file: TorrentDoc) => {
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow!, {
+      properties: ["openDirectory"]
+    })
+    if (canceled) {
+      return "";
+    }
+    let folderPath = filePaths[0];
+    torrentClient.add(file.magnetURI, { path: folderPath }, (torrent) => {
+      log(file.magnetURI + " " + torrent.magnetURI);
+      torrent.on("done", ()=>{
+        event.sender.send("download:done");
+      })
+    
+    })
+  })
+
   createWindow()
 
   app.on('activate', function () {
