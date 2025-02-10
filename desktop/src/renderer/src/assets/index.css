@@ -1,0 +1,10 @@
+@import "tailwindcss";
+/* @plugin "daisyui"; */
+
+.tab-body {
+  @apply py-3 px-2;
+}
+
+.tab-heading {
+  @apply text-2xl mb-4;
+}
