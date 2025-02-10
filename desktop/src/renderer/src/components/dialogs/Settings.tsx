@@ -17,6 +17,7 @@ const Settings = () => {
   const [userName, setUserName] = useState("");
   const [isDirty, setIsDirty] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [email, setEmail] = useState("");
 
   const navigate = useNavigate();
 
@@ -31,6 +32,7 @@ const Settings = () => {
       if (userData?.downloadPath) {
         setDownloadPath(userData?.downloadPath);
       }
+      setEmail(userData?.email);
       setUserName(userData?.username);
       console.log(userData, userId)
       setIsLoading(false);
@@ -64,6 +66,7 @@ const Settings = () => {
           <>
             <div className="h-[90%] overflow-y-auto">
               <h1 className="mb-2 text-md font-semibold">General</h1>
+
               <div className="flex mb-4 w-full gap-2 items-center">
                 <h1 className="flex-1">Display Name</h1>
                 <input
@@ -76,6 +79,15 @@ const Settings = () => {
                     }
                     setUserName(e.target.value);
                   }} />
+              </div>
+              <div className="flex mb-4 w-full gap-2 items-center">
+                <h1 className="flex-1">Email</h1>
+                <input
+                  disabled
+                  className="px-3 flex-4 py-2 border flex gap-2 w-full rounded-md"
+                  type="text"
+                  value={email}
+                />
               </div>
               <div className="flex mb-4 w-full gap-2 items-center">
                 <h1 className="flex-1">

@@ -1,6 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import path, { basename, join } from 'path'
-import {  optimizer, is } from '@electron-toolkit/utils'
+import { optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { appendFileSync, existsSync, mkdirSync, statSync, readFile } from 'fs';
 import { filesize } from "filesize"
@@ -67,7 +67,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
- 
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -159,26 +159,15 @@ app.whenReady().then(() => {
   ipcMain.handle("remove:torrent", async (_event, file: TorrentDoc) => {
     const torrentsCol = collection(db, "torrent");
     log(JSON.stringify(file));
-    const usersCol = collection(db, "users");
     try {
-      const userDataDoc = await getDoc(doc(usersCol, file.userId));
-      const paths = new Set(userDataDoc.data()?.paths as string[]);
-      paths.delete(file.magnetURI)
-      let res = torrentClient.get(file.magnetURI)
-      log("Hit 1!")
-      if (res) {
-        res.destroy();
-      }
+      torrentClient.torrents.map(e => {
+        if (e.magnetURI === file.magnetURI) {
+          e.destroy();
+          log("Deleted")
+        }
+      })
       deleteDoc(doc(torrentsCol, file.id));
-      setDoc(
-        doc(usersCol, file.userId),
-        {
-          paths: Array.from(paths.values())
-        },
-        { merge: true }
-      )
     } catch (e) {
-
     }
   })
 

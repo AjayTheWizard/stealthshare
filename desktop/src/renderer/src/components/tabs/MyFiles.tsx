@@ -63,7 +63,7 @@ const MyFiles = () => {
   if (isLoading) return;
   return (
     <div className="tab-body">
-      <h1 className="tab-heading">Shared With Me</h1>
+      <h1 className="tab-heading">My Files</h1>
       {isLoading ? null : (
         <div className="flex flex-col gap-3">
           {files.map(file => (
