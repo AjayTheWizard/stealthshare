@@ -31,6 +31,7 @@ const SignUp = () => {
       navigate("/home");
       addDoc(collection(db, "users"), {
         username: userName,
+        email: email
       })
     } catch (e) {
       toast.error("Something went wrong! Try again")

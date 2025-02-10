@@ -1,8 +1,10 @@
 import { dialogAtom } from "@renderer/atoms/tabAtom";
 import { auth, db } from "@renderer/lib/firebase";
-import { collection, doc, getDoc, setDoc } from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { collection, doc, getDoc, getDocs, query, setDoc, where } from "firebase/firestore";
 import { useSetAtom } from "jotai";
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import { useOnClickOutside } from "usehooks-ts";
 
 const userCol = collection(db, "users");
@@ -15,11 +17,14 @@ const Settings = () => {
   const [userName, setUserName] = useState("");
   const [isDirty, setIsDirty] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const navigate = useNavigate();
+
   useEffect(() => {
     async function fetchSettings() {
       const userId = auth.currentUser?.uid;
-      let userSettingsDoc = await getDoc(doc(userCol, userId));
-      let userData = userSettingsDoc.data()!;
+      let userSettingsDoc = await getDocs(query(userCol, where("email", "==", auth.currentUser?.email!)));
+      let userData = userSettingsDoc.docs.at(0)!.data();
       if (userData?.uploadPath) {
         setUploadPath(userData?.uploadPath);
       }
@@ -105,7 +110,13 @@ const Settings = () => {
             </div>
             <div className="h-[5%] w-full flex justify-between">
               <span />
-              <button disabled={!isDirty} onClick={saveSettings} className="px-5 disabled:pointer-events-none disabled:bg-gray-700 hover:bg-green-600 bg-green-700 py-2 rounded-md">Save</button>
+              <div className="flex gap-2">
+                <button className="px-5 py-2 rounded-md bg-red-500" onClick={() => {
+                  signOut(auth);
+                  navigate("/");
+                }}>Log Out</button>
+                <button disabled={!isDirty} onClick={saveSettings} className="px-5 disabled:pointer-events-none disabled:bg-gray-700 hover:bg-green-600 bg-green-700 py-2 rounded-md">Save</button>
+              </div>
             </div>
           </>
         )

@@ -26,68 +26,7 @@ const Upload = () => {
   const [privateField, setPrivateField] = useState("")
   const [uploadPath, setUploadPath] = useState("");
 
-  const [files, setFiles] = useState<{ filename: string, path: string, type: FileType, size: string }[]>([
-    {
-      filename: "ghjk",
-      path: "uydgfhjhjugfhj",
-      size: "jhgf",
-      type: "private"
-    },
-    {
-      filename: "ghjk",
-      path: "uydgfhjhjugfhj",
-      size: "jhgf",
-      type: "private"
-    },
-    {
-      filename: "ghjk",
-      path: "uydgfhjhjugfhj",
-      size: "jhgf",
-      type: "private"
-    },
-    {
-      filename: "ghjk",
-      path: "uydgfhjhjugfhj",
-      size: "jhgf",
-      type: "private"
-    },
-    {
-      filename: "ghjk",
-      path: "uydgfhjhjugfhj",
-      size: "jhgf",
-      type: "private"
-    },
-    {
-      filename: "ghjk",
-      path: "uydgfhjhjugfhj",
-      size: "jhgf",
-      type: "private"
-    },
-    {
-      filename: "ghjk",
-      path: "uydgfhjhjugfhj",
-      size: "jhgf",
-      type: "private"
-    },
-    {
-      filename: "ghjk",
-      path: "uydgfhjhjugfhj",
-      size: "jhgf",
-      type: "private"
-    },
-    {
-      filename: "ghjk",
-      path: "uydgfhjhjugfhj",
-      size: "jhgf",
-      type: "private"
-    },
-    {
-      filename: "ghjk",
-      path: "uydgfhjhjugfhj",
-      size: "jhgf",
-      type: "private"
-    },
-  ]);
+  const [files, setFiles] = useState<{ filename: string, path: string, type: FileType, size: string }[]>([]);
 
   const [isUploading, setIsUploading] = useState(false);
 

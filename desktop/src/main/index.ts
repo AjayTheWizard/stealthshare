@@ -1,11 +1,11 @@
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import path, { basename, join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import {  optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { appendFileSync, existsSync, mkdirSync, statSync, readFile } from 'fs';
 import { filesize } from "filesize"
 import type WebTorrent from 'webtorrent';
-import { addDoc, collection, doc, getDoc, setDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
 let torrentClient: WebTorrent.Instance
@@ -67,8 +67,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.electron')
-
+ 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
@@ -102,18 +101,16 @@ app.whenReady().then(() => {
     const torrentsCol = collection(db, "torrent");
     const usersCol = collection(db, "users");
     let alreadyPeered: { filename: string, path: string, type: "private" | "public", size: string }[] = [];
-    log(files);
+    const userDataDoc = await getDoc(doc(usersCol, userId));
+    const paths = new Set(userDataDoc.data()?.paths as string[] ?? []);
+
     try {
       files.map(file => {
         readFile(file.path, async (_err, dataBuffer) => {
           //@ts-ignore
           dataBuffer.name = basename(file.path);
-          const userDataDoc = await getDoc(doc(usersCol, userId));
-          const paths = new Set(userDataDoc.data()?.paths as string[] ?? []);
-
           if (!paths.has(file.path)) {
-            torrentClient.add(dataBuffer, async (torrent) => {
-              log(torrent.magnetURI);
+            torrentClient.seed(dataBuffer, async (torrent) => {
               addDoc(torrentsCol, {
                 userId: userId,
                 folder: folder,
@@ -124,17 +121,6 @@ app.whenReady().then(() => {
                 privateUsers: privateUsers,
                 type: file.type
               });
-              let obf = {
-                userId: userId,
-                folder: folder,
-                filePath: file.path,
-                fileName: file.filename,
-                size: file.size,
-                magnetURI: torrent.magnetURI,
-                privateUsers: privateUsers,
-                type: file.type
-              };
-              type HH = typeof obf;
               paths.add(file.path);
             })
           } else {
@@ -151,12 +137,49 @@ app.whenReady().then(() => {
         })
       })
       return alreadyPeered;
-
     } catch (e) {
-      log(e);
       throw new Error();
     }
 
+  })
+
+  type TorrentDoc = {
+    id: string;
+    userId: string;
+    folder: string;
+    filePath: string;
+    fileName: string;
+    size: string;
+    magnetURI: string;
+    privateUsers: string[];
+    type: "private" | "public";
+  }
+
+
+  ipcMain.handle("remove:torrent", async (_event, file: TorrentDoc) => {
+    const torrentsCol = collection(db, "torrent");
+    log(JSON.stringify(file));
+    const usersCol = collection(db, "users");
+    try {
+      const userDataDoc = await getDoc(doc(usersCol, file.userId));
+      const paths = new Set(userDataDoc.data()?.paths as string[]);
+      paths.delete(file.magnetURI)
+      let res = torrentClient.get(file.magnetURI)
+      log("Hit 1!")
+      if (res) {
+        res.destroy();
+      }
+      deleteDoc(doc(torrentsCol, file.id));
+      setDoc(
+        doc(usersCol, file.userId),
+        {
+          paths: Array.from(paths.values())
+        },
+        { merge: true }
+      )
+    } catch (e) {
+
+    }
   })
 
   createWindow()
