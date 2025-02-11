@@ -180,15 +180,26 @@ app.whenReady().then(() => {
       return "";
     }
     let folderPath = filePaths[0];
-    const newMagnetURlResp = await fetch(`http://localhost:5000/proxy/start?magnetURI=${file.magnetURI}`);
-    if (!newMagnetURlResp.ok) {
-      return "Failed";
+    // const newMagnetURlResp = await fetch(`http://localhost:5000/proxy/start?magnetURI=${file.magnetURI}`);
+    // if (!newMagnetURlResp.ok) {
+    //   return "Failed";
+    // }
+    // const newMagnetURLJson = await newMagnetURlResp.json();
+    type DownloadInfo = {
+      downloadSpeed: number;
+      uploadSpeed: number;
+      noOfPeers: number;
+      progress: number;
     }
-    const newMagnetURLJson = await newMagnetURlResp.json();
-    torrentClient.add(newMagnetURLJson.magnetURL, { path: folderPath }, (torrent) => {
+    torrentClient.add(file.magnetURI, { path: folderPath }, (torrent) => {
       log(file.magnetURI + " " + torrent.magnetURI);
       torrent.on("done", () => {
         event.sender.send("download:done");
+      })
+
+      torrent.on("download", () => {
+        let info: DownloadInfo = { noOfPeers: torrent.numPeers, uploadSpeed: torrent.uploadSpeed, downloadSpeed: torrent.downloadSpeed, progress: torrent.progress };
+        event.sender.send("download:info", file.filePath, info);
       })
 
     })

@@ -1,4 +1,6 @@
 const express = require("express");
+const cors = require("cors");
+
 const { proxyRouter } = require("./proxyRouter");
 const { peerRouter } = require("./peerRouter");
 
@@ -8,6 +10,7 @@ const { peerRouter } = require("./peerRouter");
 const PORT = process.env.PORT || 5000;
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 app.use("/proxy", proxyRouter);
 app.use("/peer", peerRouter);

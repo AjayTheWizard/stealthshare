@@ -1,27 +1,18 @@
 const { Router } = require("express");
 const { existsSync, mkdirSync, writeFileSync, rmSync } = require("fs");
-const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 
 const proxyRouter = Router();
+const UPLOAD_PATH = process.env.UPLOAD_PATH || path.join(__dirname, "uploads");
 
-const webTorrentTmpDir = path.join(os.tmpdir(), "webtorrent");
-
-if (existsSync(webTorrentTmpDir)) {
-  rmSync(webTorrentTmpDir, {
-    recursive: true,
-    force: true,
-  });
-  console.log(`Cleared old files in ${webTorrentTmpDir}`);
+if (!existsSync(UPLOAD_PATH)) {
+  mkdirSync(UPLOAD_PATH, { recursive: true });
 }
-
-const tempDir = path.join(os.tmpdir(), "stealth_share", crypto.randomUUID());
-mkdirSync(tempDir, { recursive: true });
 
 function generateSaltFile(torrentPath) {
   const salt = crypto.randomBytes(16).toString("hex");
-  const saltFilePath = path.join(torrentPath, ".torrent_salt");
+  const saltFilePath = path.join(torrentPath, `.torrent_salt_${Date.now()}`);
   writeFileSync(saltFilePath, salt);
   console.log("Generated new salt:", salt);
   return saltFilePath;
@@ -44,6 +35,8 @@ let torrentData = new Map();
 
 proxyRouter.get("/start", async (req, res) => {
   const magnetURI = decodeURIComponent(req.query.magnetURI);
+  const torrentPath = path.join(UPLOAD_PATH, crypto.randomUUID());
+  mkdirSync(torrentPath, { recursive: true });
 
   if (torrentData.has(magnetURI)) {
     const existingData = torrentData.get(magnetURI);
@@ -54,23 +47,30 @@ proxyRouter.get("/start", async (req, res) => {
         filePath: existingData.filePath,
         magnetURI: newMagnetURI,
       });
-      console.log("Generated new Magnet URI:", newMagnetURI);
+      console.log("Generated new Magnet URI instantly:", newMagnetURI);
       res.json({ magnetURL: newMagnetURI });
     });
     return;
   }
 
-  webTorrent.add(magnetURI, { path: tempDir }, (torrent) => {
-    console.log(`Downloaded: ${torrent.files.map((f) => f.path).join(", ")}`);
-    const filePath = tempDir;
-    torrent.on("done", () => {
-      const saltFilePath = generateSaltFile(filePath);
-      webTorrent.seed([filePath, saltFilePath], (newTorrent) => {
+  webTorrent.add(magnetURI, { path: torrentPath }, (torrent) => {
+    console.log(`Downloading: ${torrent.name}`);
+    torrent.on("wire", () => {
+      console.log(`Seeding started for: ${torrent.name}`);
+      const saltFilePath = generateSaltFile(torrentPath);
+      webTorrent.seed([torrentPath, saltFilePath], (newTorrent) => {
         let newMagnetURI = newTorrent.magnetURI;
-        torrentData.set(magnetURI, { filePath, magnetURI: newMagnetURI });
-        console.log("New Torrent Magnet URI:", newMagnetURI);
+        torrentData.set(magnetURI, {
+          filePath: torrentPath,
+          magnetURI: newMagnetURI,
+        });
+        console.log("New Torrent Magnet URI while downloading:", newMagnetURI);
         res.json({ magnetURL: newMagnetURI });
       });
+    });
+
+    torrent.on("done", () => {
+      console.log(`Download complete: ${torrent.name}`);
     });
   });
 });

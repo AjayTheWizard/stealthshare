@@ -1,88 +1,72 @@
 const express = require("express");
-const nanoid = require("nanoid-cjs");
-const os = require("os");
-const path = require("path");
-const fs = require("fs");
+const { nanoid } = require("nanoid-cjs");
 
 const peerRouter = express.Router();
-const tempDir = os.tmpdir();
 
-/** @typedef {Object} VirtualPeer
- *  @property {string} id
- *  @property {import("webtorrent").Instance} client
- *  @property {Date} startTime
- *  @property {Date} [endTime]
- *  @property {string} status // "active" | "stopped"
- *  @property {Function} cleanup
- */
-
-/** @type {Map<string, VirtualPeer>} */
+/** @type {Map<string, Map<string, { client: any, startTime: Date, magnetURI: string }>>} */
 const virtualPeers = new Map();
 
-peerRouter.get("/list", (_req, res) => {
-  res.json({ peers: Array.from(virtualPeers.keys()) });
+peerRouter.get("/list/:userId", (req, res) => {
+  const userId = req.params.userId;
+  if (!virtualPeers.has(userId)) {
+    return res.json({ peers: [] });
+  }
+  res.json({
+    peers: Array.from(virtualPeers.get(userId).entries()).map(
+      ([peerId, data]) => ({ peerId, magnetURI: data.magnetURI })
+    ),
+  });
 });
 
-peerRouter.get("/start", async (req, res) => {
-  if (!req.query.magnetURI) {
-    return res
-      .status(400)
-      .json({ error: "Missing magnetURI in query parameters" });
+peerRouter.get("/start/:userId", async (req, res) => {
+  const userId = req.params.userId;
+  const magnetURI = decodeURIComponent(req.query.magnetURI);
+
+  if (!magnetURI) {
+    return res.status(400).json({ error: "Missing magnetURI" });
   }
 
-  const { default: WebTorrent } = await import("webtorrent");
-  const magnetURI = decodeURIComponent(req.query.magnetURI);
-  console.log("Starting virtual peer for:", magnetURI);
+  if (!virtualPeers.has(userId)) {
+    virtualPeers.set(userId, new Map());
+  }
 
-  const peerId = nanoid.nanoid();
+  const userPeers = virtualPeers.get(userId);
+  const peerId = nanoid();
+
+  const WebTorrent = (await import("webtorrent")).default;
   const client = new WebTorrent();
-  const currTempDir = path.join(tempDir, peerId);
-  fs.mkdirSync(currTempDir, { recursive: true });
+  userPeers.set(peerId, { client, startTime: new Date(), magnetURI });
 
-  const virtualPeer = {
-    id: peerId,
-    client,
-    startTime: new Date(),
-    status: "active",
-    cleanup: () => {
-      fs.rmSync(currTempDir, { recursive: true, force: true });
-    },
-  };
-
-  virtualPeers.set(peerId, virtualPeer);
-
-  client.add(magnetURI, { path: currTempDir }, (torrent) => {
-    console.log("Virtual peer started for:", torrent.name);
+  client.add(magnetURI, (torrent) => {
+    console.log(
+      `User ${userId} started seeding: ${torrent.name} (Peer ID: ${peerId})`
+    );
   });
 
-  client.on("error", (err) => {
-    console.error("WebTorrent error:", err);
-    virtualPeer.status = "error";
-  });
-
-  res.json({ id: peerId, startTime: virtualPeer.startTime.toISOString() });
+  res.json({ message: "Seeding started", peerId, magnetURI });
 });
 
-peerRouter.get("/stop/:peerId", (req, res) => {
+peerRouter.get("/stop/:userId/:peerId", (req, res) => {
+  const userId = req.params.userId;
   const peerId = req.params.peerId;
-  if (!virtualPeers.has(peerId)) {
+
+  if (!virtualPeers.has(userId) || !virtualPeers.get(userId).has(peerId)) {
     return res.status(404).json({ error: "Peer not found" });
   }
 
-  const peer = virtualPeers.get(peerId);
-  peer.client.destroy(() => {
-    console.log(`Stopped virtual peer: ${peerId}`);
+  const { client, magnetURI } = virtualPeers.get(userId).get(peerId);
+  client.destroy(() => {
+    console.log(
+      `Stopped seeding for user ${userId}: ${magnetURI} (Peer ID: ${peerId})`
+    );
   });
-  peer.cleanup();
-  peer.endTime = new Date();
-  peer.status = "stopped";
-  virtualPeers.delete(peerId);
+  virtualPeers.get(userId).delete(peerId);
 
-  res.json({
-    message: "Peer stopped",
-    peerId,
-    duration: (peer.endTime - peer.startTime) / 1000,
-  });
+  if (virtualPeers.get(userId).size === 0) {
+    virtualPeers.delete(userId);
+  }
+
+  res.json({ message: "Stopped seeding", peerId, magnetURI });
 });
 
 module.exports.peerRouter = peerRouter;

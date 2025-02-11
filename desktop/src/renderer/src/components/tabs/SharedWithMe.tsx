@@ -1,6 +1,7 @@
 import { auth, db } from "@renderer/lib/firebase";
 import { and, collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
+import { filesize } from "filesize"
 
 const torrentsCol = collection(db, "torrent");
 
@@ -15,10 +16,18 @@ type TorrentDoc = {
   type: "private" | "public";
 }
 
+type DownloadInfo = {
+  downloadSpeed: string;
+  uploadSpeed: string;
+  noOfPeers: number;
+  progress: number;
+}
+
 const SharedWithMe = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState("");
   const [files, setFiles] = useState<TorrentDoc[]>([]);
+  const [downloadInfos, setDownloadInfos] = useState<Record<string, DownloadInfo>>({});
 
   useEffect(() => {
     async function fetchTorrents() {
@@ -54,8 +63,10 @@ const SharedWithMe = () => {
     fetchTorrents();
   }, [])
 
-  useEffect(()=>{
-    
+  useEffect(() => {
+    window.electron.ipcRenderer.on("download:info", (_event, path: string, info: DownloadInfo) => {
+      setDownloadInfos(e => ({ ...e, [path]: info }))
+    });
   }, [])
 
   const download = (file: TorrentDoc) => {
@@ -77,7 +88,13 @@ const SharedWithMe = () => {
                 </div>
               </div>
               <div className="w-full flex justify-between items-center">
-                <button onClick={() => download(file)} className="px-4 py-2 bg-green-700 hover:bg-green-800 rounded-md">Download</button>
+                <div className="flex flex-col items-center gap-2">
+                  <button onClick={() => download(file)} className="px-4 py-2 bg-green-700 hover:bg-green-800 rounded-md">Download</button>
+                  <h3>Upload Speed: {filesize(downloadInfos[file.filePath]?.uploadSpeed )}/s</h3>
+                  <h3>Download Speed: {filesize(downloadInfos[file.filePath]?.downloadSpeed) }/s</h3>
+                  <h3>No of Peers: {downloadInfos[file.filePath]?.noOfPeers ?? "0"}</h3>
+                  <h3>Progress: {(downloadInfos[file.filePath]?.progress * 100).toFixed(2) ?? "0"}%</h3>
+                </div>
                 <h3>Size: {file.size}</h3>
               </div>
             </div>
