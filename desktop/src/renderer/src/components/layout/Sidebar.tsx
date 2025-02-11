@@ -1,5 +1,6 @@
 import { dialogAtom, tabAtom } from "@renderer/atoms/tabAtom";
 import { useAtom, useSetAtom } from "jotai";
+import logo from "../../assets/StealthShareLogo.png";
 
 const Sidebar = () => {
   const [tabAtomValue, setTabAtom] = useAtom(tabAtom);
@@ -7,7 +8,7 @@ const Sidebar = () => {
   return (
     <div className="w-[30%] justify-between min-h-screen flex flex-col gap-4 border-r-2">
       <div className="flex flex-col gap-4">
-        <h1 className="text-2xl font-semibold mt-8">StealthShare</h1>
+        <h1 className="text-2xl font-semibold mt-8 mb-4 roboto-serif flex items-center gap-2"> <img src={logo} className="size-8" alt="Logo" /> StealthShare</h1>
         <div className="border-b pb-4">
           <button onClick={() => { setDialogState("upload") }} className="bg-[rgba(255,255,255,0.1)] flex gap-1 rounded-xl items-center px-5 justify-center py-3">Upload
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-5">
