@@ -33,7 +33,6 @@ const SharedWithMe = () => {
     async function fetchTorrents() {
       let userIdTmp = auth.currentUser!.uid;
       setUserId(userIdTmp);
-      console.log(auth.currentUser?.email);
 
       const privateTorrentQuery = query(torrentsCol,
         and(
@@ -55,7 +54,6 @@ const SharedWithMe = () => {
           fileData.push(docs.data() as never);
         })
       })
-      console.log(fileData, docs.docs);
       setFiles(fileData);
       setIsLoading(false);
       return unSub;

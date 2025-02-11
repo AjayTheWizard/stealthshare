@@ -73,7 +73,6 @@ const Upload = () => {
   }
 
   useOnClickOutside(dialogRef, () => {
-    console.log("Hi");
     if (isUploading) {
       return;
     }

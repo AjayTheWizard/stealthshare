@@ -37,11 +37,7 @@ peerRouter.get("/start/:userId", async (req, res) => {
   const client = new WebTorrent();
   userPeers.set(peerId, { client, startTime: new Date(), magnetURI });
 
-  client.add(magnetURI, (torrent) => {
-    console.log(
-      `User ${userId} started seeding: ${torrent.name} (Peer ID: ${peerId})`
-    );
-  });
+  client.add(magnetURI);
 
   res.json({ message: "Seeding started", peerId, magnetURI });
 });
@@ -55,11 +51,7 @@ peerRouter.get("/stop/:userId/:peerId", (req, res) => {
   }
 
   const { client, magnetURI } = virtualPeers.get(userId).get(peerId);
-  client.destroy(() => {
-    console.log(
-      `Stopped seeding for user ${userId}: ${magnetURI} (Peer ID: ${peerId})`
-    );
-  });
+  client.destroy();
   virtualPeers.get(userId).delete(peerId);
 
   if (virtualPeers.get(userId).size === 0) {

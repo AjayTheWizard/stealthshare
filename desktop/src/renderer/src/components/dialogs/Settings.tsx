@@ -34,7 +34,6 @@ const Settings = () => {
       }
       setEmail(userData?.email);
       setUserName(userData?.username);
-      console.log(userData, userId)
       setIsLoading(false);
     }
 

@@ -14,7 +14,6 @@ function generateSaltFile(torrentPath) {
   const salt = crypto.randomBytes(16).toString("hex");
   const saltFilePath = path.join(torrentPath, `.torrent_salt_${Date.now()}`);
   writeFileSync(saltFilePath, salt);
-  console.log("Generated new salt:", salt);
   return saltFilePath;
 }
 
@@ -47,16 +46,13 @@ proxyRouter.get("/start", async (req, res) => {
         filePath: existingData.filePath,
         magnetURI: newMagnetURI,
       });
-      console.log("Generated new Magnet URI instantly:", newMagnetURI);
       res.json({ magnetURL: newMagnetURI });
     });
     return;
   }
 
   webTorrent.add(magnetURI, { path: torrentPath }, (torrent) => {
-    console.log(`Downloading: ${torrent.name}`);
     torrent.on("wire", () => {
-      console.log(`Seeding started for: ${torrent.name}`);
       const saltFilePath = generateSaltFile(torrentPath);
       webTorrent.seed([torrentPath, saltFilePath], (newTorrent) => {
         let newMagnetURI = newTorrent.magnetURI;
@@ -64,13 +60,8 @@ proxyRouter.get("/start", async (req, res) => {
           filePath: torrentPath,
           magnetURI: newMagnetURI,
         });
-        console.log("New Torrent Magnet URI while downloading:", newMagnetURI);
         res.json({ magnetURL: newMagnetURI });
       });
-    });
-
-    torrent.on("done", () => {
-      console.log(`Download complete: ${torrent.name}`);
     });
   });
 });
@@ -80,7 +71,6 @@ proxyRouter.get("/stop", async (req, res) => {
   let found = false;
   webTorrent.torrents.forEach((torrent) => {
     if (torrent.magnetURI === magnetURI) {
-      console.log("Destroyed:", magnetURI);
       torrent.destroy(() => {
         if (torrentData.has(magnetURI)) {
           rmSync(torrentData.get(magnetURI).filePath, {
