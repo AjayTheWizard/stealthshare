@@ -1,6 +1,6 @@
 import { dialogAtom } from "@renderer/atoms/tabAtom";
 import { auth, db } from "@renderer/lib/firebase";
-import { collection, doc, getDoc } from "firebase/firestore";
+import { collection, doc, getDoc, writeBatch } from "firebase/firestore";
 import { useSetAtom } from "jotai";
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -112,26 +112,43 @@ const Upload = () => {
     return isP;
   }, [files]);
 
-  const uploadFile = () => {
+  const uploadFile = async () => {
     setIsUploading(true);
-    if (isUploading) {
-      window.electron.ipcRenderer.invoke("upload:files", files, auth.currentUser?.uid, "/", privateUsers).then((exFiles: {
-        filename: string;
-        path: string;
-        type: "private" | "public";
-        size: string;
-      }[]) => {
-        exFiles.map(exFile => {
-          toast.error(`Path ${exFile.path} is already seeding`)
-        })
-        setDialogValue("none");
-        setIsUploading(false);
-      }).catch(_ => {
-        toast.error("Something went wrong!")
-        setIsUploading(false);
+
+    try {
+      const seededFiles = await window.electron.ipcRenderer.invoke(
+        "upload:files",
+        files
+      );
+      console.log(seededFiles)
+
+      // Use a Firestore batch for uploading the documents
+      const batch = writeBatch(db);
+      seededFiles.forEach((file: { filename: string; magnetURI: string; path: string, size: string }) => {
+        const docRef = doc(collection(db, "torrent")); // Auto-generate document ID
+        console.log(privateUsers);
+
+        batch.set(docRef, {
+          userId: auth.currentUser?.uid,
+          filePath: file.path,
+          fileName: file.filename,
+          size: file.size,
+          magnetURI: file.magnetURI,
+          privateUsers: privateUsers,
+          type: privateUsers.length > 0 ? "private" : "public", // Or "public", based on your logic
+        });
       });
+
+      await batch.commit(); // Commit the batch of writes
+      toast.success("Files uploaded successfully!");
+    } catch (error) {
+      console.error("Error uploading files:", error);
+      toast.error("Something went wrong!");
+    } finally {
+      setIsUploading(false);
+      setDialogValue("none");
     }
-  }
+  };
 
   return (
     <div ref={dialogRef} className="absolute left-1/2 p-5 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[80ch] h-[90%] bg-zinc-800 rounded-2xl shadow-md">

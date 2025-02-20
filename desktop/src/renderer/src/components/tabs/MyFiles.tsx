@@ -1,5 +1,6 @@
 import { auth, db } from "@renderer/lib/firebase";
-import { and, collection, doc, getDocs, onSnapshot, query, where } from "firebase/firestore";
+import { and, collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
+import { } from "firebase/database"
 import { useEffect, useState } from "react";
 
 type TorrentDoc = {
@@ -19,43 +20,52 @@ const torrentsCol = collection(db, "torrent");
 
 const MyFiles = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [userId, setUserId] = useState("");
+  const [_userId, setUserId] = useState("");
   const [files, setFiles] = useState<TorrentDoc[]>([]);
 
+  const [changes, setChanges] = useState(0)
   useEffect(() => {
-    async function fetchTorrents() {
-      let userIdTmp = auth.currentUser!.uid;
+    if (!auth.currentUser) return;
+
+    const fetchTorrents = async () => {
+      const userIdTmp = auth.currentUser!.uid;
       setUserId(userIdTmp);
 
-      const privateTorrentQuery = query(torrentsCol,
-        and(
-          where("type", "==", "private"),
-          where("userId", "==", auth.currentUser!.uid)
-        )
+      console.log(auth.currentUser);
+
+      const privateTorrentQuery = query(
+        torrentsCol,
+        where("userId", "==", userIdTmp)
       );
-      let fileData: TorrentDoc[] = [];
 
-      let docs = await getDocs(privateTorrentQuery);
+      const unSub = onSnapshot(privateTorrentQuery, (snapshot) => {
+        const liveFileData: TorrentDoc[] = [];
+        snapshot.forEach((doc) => {
+          liveFileData.push({ ...doc.data(), id: doc.id } as TorrentDoc);
+        });
+        setFiles(liveFileData);
+        setIsLoading(false);
+        console.log("updated!")
+      });
 
-      docs.forEach(doc => {
-        fileData.push({ ...doc.data(), id: doc.id } as never);
-      })
-
-      let unSub = onSnapshot(privateTorrentQuery, (dataDoc) => {
-        fileData = [];
-        dataDoc.forEach(docs => {
-          fileData.push({ ...docs.data(), id: docs.id } as never);
-        })
-      })
-      setFiles(fileData);
-      setIsLoading(false);
       return unSub;
-    }
-    fetchTorrents();
-  }, [])
+    };
+
+    let unsubscribe: (() => void) | undefined;
+    fetchTorrents().then((unSub) => {
+      unsubscribe = unSub;
+    });
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [auth.currentUser]);
+
 
   const stopSeeding = (file: TorrentDoc) => {
     window.electron.ipcRenderer.invoke("remove:torrent", file);
+    setFiles(pFiles => pFiles.filter(e => e.filePath != file.filePath))
+    setChanges(e => e + 1);
   }
 
   if (isLoading) return;

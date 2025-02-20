@@ -2,6 +2,7 @@ import { auth, db } from "@renderer/lib/firebase";
 import { and, collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { filesize } from "filesize"
+import toast from "react-hot-toast";
 
 const torrentsCol = collection(db, "torrent");
 
@@ -40,21 +41,23 @@ const SharedWithMe = () => {
           where("privateUsers", "array-contains", auth.currentUser!.email)
         )
       );
-      let fileData: TorrentDoc[] = [];
 
-      let docs = await getDocs(privateTorrentQuery);
-
-      docs.forEach(doc => {
-        fileData.push(doc.data() as never);
-      })
-
-      let unSub = onSnapshot(privateTorrentQuery, (dataDoc) => {
-        fileData = [];
-        dataDoc.forEach(docs => {
+      let unSub = onSnapshot(privateTorrentQuery, (snapShot) => {
+        console.log("Newly shared")
+        snapShot.docChanges().forEach((change) => {
+          if (change.type === "added") {
+            toast.success("New File has been shared with you!");
+          }
+          if (change.type === "removed") {
+            toast.success("A File has been stopped sharing with you!");
+          }
+        })
+        let fileData: TorrentDoc[] = [];
+        snapShot.forEach(docs => {
           fileData.push(docs.data() as never);
         })
+        setFiles(fileData);
       })
-      setFiles(fileData);
       setIsLoading(false);
       return unSub;
     }
